@@ -2,35 +2,44 @@ import os
 import json
 import math
 import argparse
+import numpy as np
 from pathlib import Path
 
-def __least_cost_path (grid: list[list[float]]) -> list[int]:
-    aligned_user_frame_idxs: list[int] = []
-    rows = len(grid)
-    cols = len(grid[0])
-
-    aligned_user_frame_idxs.append(0)
-
+def __least_cost_path(grid) -> list[tuple[int, int]]:
+    rows, cols = len(grid), len(grid[0])
+    path = [(0, 0)]
     r_idx, u_idx = 0, 0
-    while (u_idx+1) < cols and (r_idx+1) < rows:
-        str8, right, left = grid[r_idx+1][u_idx+1], grid[r_idx][u_idx+1], grid[r_idx+1][u_idx]
-        next_cell = min(str8, right, left)
-        if next_cell == str8:
-            u_idx+=1
-            r_idx+=1
-        elif next_cell == left:
-            r_idx+=1
+    while r_idx + 1 < rows or u_idx + 1 < cols:
+        if r_idx + 1 >= rows:
+            u_idx += 1
+        elif u_idx + 1 >= cols:
+            r_idx += 1
         else:
-            u_idx+=1
-        aligned_user_frame_idxs.append(u_idx)
+            str8  = grid[r_idx+1][u_idx+1]
+            down  = grid[r_idx+1][u_idx]
+            right = grid[r_idx][u_idx+1]
+            choice = min(str8, down, right)
+            if choice == str8: r_idx, u_idx = r_idx+1, u_idx+1
+            elif choice == down: r_idx += 1
+            else: u_idx += 1
+        path.append((r_idx, u_idx))
+    return path
 
-    while u_idx < cols:
-        aligned_user_frame_idxs.append(u_idx)
-        u_idx+=1
+def np_dynamic_time_warp (reference_frames: np.ndarray, user_frames: np.ndarray) -> list[tuple[int, int]]:
 
-    return aligned_user_frame_idxs
+    reference = np.array([
+        np.vstack([ body[:, :3], lhand, rhand ])
+        for body, lhand, rhand in reference_frames
+    ])
+    user = np.array([
+        np.vstack([ body[:, :3], lhand, rhand ])
+        for body, lhand, rhand in user_frames
+    ])
 
-def dynamic_time_warp (reference_frames: list[dict], user_frames: list[dict]) -> list[dict]:
+    grid = np.linalg.norm(reference[:, None] - user[None], axis=-1).sum(axis=-1)
+    return __least_cost_path (grid)
+
+def dynamic_time_warp (reference_frames: list[dict], user_frames: list[dict]) -> list[tuple[int, int]]:
 
     rows = len(reference_frames)
     cols = len(user_frames)
@@ -40,15 +49,6 @@ def dynamic_time_warp (reference_frames: list[dict], user_frames: list[dict]) ->
         r_body, r_rhand, r_lhand = (r_frame.get('body', []), r_frame.get('right_hand', []), r_frame.get('left_hand', []))
         for u_idx, u_frame in enumerate(user_frames):
             u_body, u_rhand, u_lhand = (u_frame.get('body', []), u_frame.get('right_hand', []), u_frame.get('left_hand', []))
-
-            # check if hand's, ie 'left'/'right' in user/ref len is 0 in ref/user
-            x: bool = (len(u_lhand) == 0 and len(r_lhand) != 0) or (len(u_rhand) == 0 and len(r_rhand) != 0)
-            y: bool = (len(u_lhand) != 0 and len(r_lhand) == 0) or (len(u_rhand) != 0 and len(r_rhand) == 0)
-            z = x or y
-
-            if z:
-                frame_no = u_frame.get('frame')
-                raise Exception(f"[ERROR] left/right hand arrays do not match for frame {frame_no} in both reference and user frames!")
 
             hands_array = [u_lhand, r_lhand] if len(u_lhand) != 0 or len(r_lhand) != 0 else [u_rhand, r_rhand]
 
@@ -68,10 +68,7 @@ def dynamic_time_warp (reference_frames: list[dict], user_frames: list[dict]) ->
             # grid[row-> refs][col -> user]
             grid[r_idx][u_idx] = round(cumulative_frame_landmark_euclidean_distance, 4)
 
-    aligned_user_frame_idxs = __least_cost_path (grid)
-    aligned_user_frames: list[dict] = [user_frames[i] for i in aligned_user_frame_idxs]
-
-    return aligned_user_frames
+    return __least_cost_path (grid)
 
 def main ():
 
@@ -106,12 +103,12 @@ def main ():
     input_data = json.loads (input_file.read())
     ref_data = json.loads (reference_file.read())
 
-    aligned_user_frames = dynamic_time_warp (reference_frames=ref_data['frames'], user_frames=input_data['frames'])
+    aligned_UR_frames = dynamic_time_warp (ref_data['frames'], input_data['frames'])
 
     full_input_filename = Path(args.input_file)
     out_file = os.path.join(args.output_dir, full_input_filename.stem)
     with open(out_file, 'w') as out:
-        out.write(json.dumps(aligned_user_frames))
+        out.write(str(aligned_UR_frames))
 
 if __name__ == "__main__":
     main ()

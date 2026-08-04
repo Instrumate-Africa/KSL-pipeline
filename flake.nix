@@ -11,12 +11,11 @@
     in
     {
       devShells.${system}.default = pkgs.mkShell {
-        nativeBuildInputs = [ pkgs.pyright ];
-        buildInputs = with pkgs; [
+        nativeBuildInputs = with pkgs; [
           python3
+          pyright
         ];
         shellHook = ''
-          export SHELL="${pkgs.bashInteractive}/bin/bash"
           export LD_LIBRARY_PATH="${
             pkgs.lib.makeLibraryPath [
               pkgs.stdenv.cc.cc.lib

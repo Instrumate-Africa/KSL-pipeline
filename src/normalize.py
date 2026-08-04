@@ -3,9 +3,53 @@ import os
 import json
 import math
 import argparse
+import numpy as np
 from pathlib import Path
 
-def normalize (frames: list[dict]) -> list[dict]:
+def np_normalize (frames: np.ndarray) -> list[tuple[np.ndarray, float, np.ndarray]]:
+    output = []
+    for frame in frames:
+        body = frame[0]
+        left_hand = frame[1]
+        right_hand = frame[2]
+
+        # average of left hip(23) and right hip(24)
+        hip_center = np.array([np.round((body[23] - body[24])/2, 4)])
+        #Euclidean distance between left shoulder and right shoulder
+        shoulder_width = np.linalg.norm(body[11]-body[12])
+
+        normalized_body = np.array([
+            np.concatenate([
+                np.round((bone[:3] - hip_center)/shoulder_width, 4),
+                [bone[3]]
+            ])
+            for bone in body
+        ])
+
+        normalized_lh_bones = np.array([
+            (
+                (bone - hip_center) / shoulder_width
+                if np.any(bone != 0)
+                else bone
+            )
+            for bone in left_hand
+        ])
+
+        normalized_rh_bones = np.array([
+            (
+                (bone - hip_center) / shoulder_width
+                if np.any(bone != 0)
+                else bone
+            )
+            for bone in right_hand
+        ])
+        normalized_frame = np.array([normalized_body, normalized_lh_bones, normalized_rh_bones])
+        output.append((hip_center, shoulder_width, normalized_frame))
+
+    return output
+
+
+def json_normalize (frames: list[dict]) -> list[dict]:
 
     normalized_frames: list[dict] = []
 
@@ -104,7 +148,7 @@ def main ():
             full_output_path = os.path.join(args.output if output_is_dir else '', json_filename)
             in_file = open(full_input_path, "r")
             data = json.loads(in_file.read())
-            normal_coords = normalize(data.get('frames'))
+            normal_coords = json_normalize(data.get('frames'))
             out_json = {}
             out_json['fps'] = data.get('fps')
             out_json['total_frames'] = data.get('total_frames')
@@ -118,7 +162,7 @@ def main ():
         full_output_path = os.path.join(args.output if output_is_dir else '', json_filename)
         in_file = open(json_filename, "r")
         data = json.loads(in_file.read())
-        normal_coords = normalize(data.get('frames'))
+        normal_coords = json_normalize(data.get('frames'))
         out_json = {}
         out_json['fps'] = data.get('fps')
         out_json['total_frames'] = data.get('total_frames')

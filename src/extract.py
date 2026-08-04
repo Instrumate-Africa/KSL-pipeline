@@ -6,6 +6,7 @@ import os
 import cv2
 import json
 import argparse
+import numpy as np
 import urllib.request
 import mediapipe as mp
 from pathlib import Path
@@ -37,7 +38,7 @@ def download_models () -> tuple[str, str]:
     return models['pose']['path'], models['hand']['path']
 
 
-def extract_sign_poses(video_path: str, target_fps: float = 30.0) -> dict:
+def extract_sign_poses(video_path: str, output_as_numpy_array=False, target_fps: float = 30.0) -> dict | np.ndarray:
     """
     Extracts body and hand landmarks from a video and saves them to a JSON file.
 
@@ -151,13 +152,40 @@ def extract_sign_poses(video_path: str, target_fps: float = 30.0) -> dict:
 
     cap.release()
 
-    output = {
-        'fps': fps,
-        'total_frames': frame_count,
-        'frames': poses
-    }
-    return output
+    if output_as_numpy_array:
+        body = np.array([
+            [
+                [c["x"], c["y"], c["z"], c["visibility"]]
+                for c in frame["body"]
+            ]
+            for frame in poses
+            ])
 
+        left = np.array([
+            (
+                [[c["x"], c["y"], c["z"]] for c in frame["left_hand"]]
+                if len(frame["left_hand"]) != 0
+                else np.zeros(shape=(21, 3))
+            )
+            for frame in poses
+        ])
+
+        right = np.array([
+            (
+                [[c["x"], c["y"], c["z"]] for c in frame["right_hand"]]
+                if len(frame["right_hand"]) != 0
+                else np.zeros(shape=(21, 3))
+            )
+            for frame in poses
+        ])
+        return np.array([body, left, right])
+    else:
+        output = {
+            'fps': fps,
+            'total_frames': frame_count,
+            'frames': poses
+        }
+        return output
 
 def main ():
 

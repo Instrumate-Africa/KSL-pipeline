@@ -2,4 +2,3 @@
 .direnv
 data
 zips
-src/db_save.py
