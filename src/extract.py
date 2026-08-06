@@ -178,7 +178,15 @@ def extract_sign_poses(video_path: str, output_as_numpy_array=False, target_fps:
             )
             for frame in poses
         ])
-        return np.array([body, left, right])
+        frames = np.array([
+            np.vstack([
+                b[:, :3],
+                l,
+                r
+                ])
+            for b, l, r in zip(body, left, right)
+        ])
+        return frames
     else:
         output = {
             'fps': fps,

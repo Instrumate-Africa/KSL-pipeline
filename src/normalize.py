@@ -7,45 +7,45 @@ import numpy as np
 from pathlib import Path
 
 def np_normalize (frames: np.ndarray) -> list[tuple[np.ndarray, float, np.ndarray]]:
-    output = []
+    normalized_frames = []
+    hip_centers = []
+    shoulder_widths = []
+
+    # each frame is a stack of all 75 landmarks, 33 for the body, and 21 for each hand
     for frame in frames:
-        body = frame[0]
-        left_hand = frame[1]
-        right_hand = frame[2]
+        body = frame[:33]        # 0-32
+        left_hand = frame[33:54] # 33 - 53
+        right_hand = frame[54:]  # 54 - 74
 
         # average of left hip(23) and right hip(24)
-        hip_center = np.array([np.round((body[23] - body[24])/2, 4)])
+        hip_center = np.round((body[23] + body[24])/2, 4)
         #Euclidean distance between left shoulder and right shoulder
         shoulder_width = np.linalg.norm(body[11]-body[12])
 
-        normalized_body = np.array([
-            np.concatenate([
-                np.round((bone[:3] - hip_center)/shoulder_width, 4),
-                [bone[3]]
-            ])
-            for bone in body
-        ])
+        normalized_body = np.round((body - hip_center) / shoulder_width, 4)
 
-        normalized_lh_bones = np.array([
-            (
-                (bone - hip_center) / shoulder_width
-                if np.any(bone != 0)
-                else bone
-            )
-            for bone in left_hand
+        normalized_lh = left_hand.copy()
+        mask = np.any(left_hand != 0, axis=1)
+        normalized_lh[mask] = np.round(
+            (left_hand[mask] - hip_center) / shoulder_width,
+            4
+        )
+        normalized_rh = right_hand.copy()
+        mask = np.any(right_hand != 0, axis=1)
+        normalized_rh[mask] = np.round(
+            (right_hand[mask] - hip_center) / shoulder_width,
+            4
+        )
+        normalized_frame = np.vstack([
+            normalized_body,
+            normalized_lh,
+            normalized_rh
         ])
+        hip_centers.append(hip_center)
+        shoulder_widths.append(shoulder_width)
+        normalized_frames.append(normalized_frame)
 
-        normalized_rh_bones = np.array([
-            (
-                (bone - hip_center) / shoulder_width
-                if np.any(bone != 0)
-                else bone
-            )
-            for bone in right_hand
-        ])
-        normalized_frame = np.array([normalized_body, normalized_lh_bones, normalized_rh_bones])
-        output.append((hip_center, shoulder_width, normalized_frame))
-
+    output = [hip_centers, shoulder_widths, np.array([normalized_frames])]
     return output
 
 

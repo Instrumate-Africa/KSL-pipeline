@@ -25,18 +25,9 @@ def __least_cost_path(grid) -> list[tuple[int, int]]:
         path.append((r_idx, u_idx))
     return path
 
-def np_dynamic_time_warp (reference_frames: np.ndarray, user_frames: np.ndarray) -> list[tuple[int, int]]:
-
-    reference = np.array([
-        np.vstack([ body[:, :3], lhand, rhand ])
-        for body, lhand, rhand in reference_frames
-    ])
-    user = np.array([
-        np.vstack([ body[:, :3], lhand, rhand ])
-        for body, lhand, rhand in user_frames
-    ])
-
-    grid = np.linalg.norm(reference[:, None] - user[None], axis=-1).sum(axis=-1)
+def np_dynamic_time_warp (norm_reference_frames: np.ndarray, norm_user_frames: np.ndarray) -> list[tuple[int, int]]:
+    # frames are ndarrays of shape (#frames, 75, 3)
+    grid = np.linalg.norm(norm_reference_frames[:, None] - norm_user_frames[None], axis=-1).sum(axis=-1)
     return __least_cost_path (grid)
 
 def dynamic_time_warp (reference_frames: list[dict], user_frames: list[dict]) -> list[tuple[int, int]]:

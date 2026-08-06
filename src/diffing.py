@@ -63,7 +63,7 @@ def eval_elbow_pos (
         ref_frames: np.ndarray,
         path: list[tuple[int, int]]
         ) -> str:
-    # body, lhand, rhand
+    # frames are of the shape (F, 75, 3)
     # body -> 13, 14 (l,r elbows)
     NOISE_THRESHOLD = 0
     DISTANCE_TOLERANCE = 0
@@ -71,8 +71,10 @@ def eval_elbow_pos (
     delta_list = []
 
     for r_idx, u_idx in path:
-        ul_elbow_vec, ur_elbow_vec = user_frames[u_idx][0][13:15]
-        rl_elbow_vec, rr_elbow_vec = ref_frames[r_idx][0][13:15]
+        u_body = user_frames[u_idx][:33]
+        r_body = ref_frames[r_idx][:33]
+        ul_elbow_vec, ur_elbow_vec = u_body[13:15]
+        rl_elbow_vec, rr_elbow_vec = r_body[13:15]
 
         delta_list.append(ul_elbow_vec - rl_elbow_vec)
         delta_list.append(ur_elbow_vec - rr_elbow_vec)
@@ -126,7 +128,7 @@ def eval_wrist_pos (
         ref_frames: np.ndarray,
         path: list[tuple[int, int]]
         ) -> str | None:
-    # body, lhand, rhand
+    # frames are of the shape (F, 75, 3)
     # 13, 14 (l,r elbows)
     # 15, 16 (l,r wrists)
     # TODO
@@ -136,10 +138,13 @@ def eval_wrist_pos (
     delta_list = []
 
     for r_idx, u_idx in path:
-        ul_elbow_vec, ur_elbow_vec = user_frames[u_idx][0][13:15]
-        rl_elbow_vec, rr_elbow_vec = ref_frames[r_idx][0][13:15]
-        ul_wrist_vec, ur_wrist_vec = user_frames[u_idx][0][15:17]
-        rl_wrist_vec, rr_wrist_vec = ref_frames[u_idx][0][15:17]
+        u_body = user_frames[u_idx][:33]
+        r_body = ref_frames[r_idx][:33]
+
+        ul_elbow_vec, ur_elbow_vec = u_body[13:15]
+        rl_elbow_vec, rr_elbow_vec = r_body[13:15]
+        ul_wrist_vec, ur_wrist_vec = u_body[15:17]
+        rl_wrist_vec, rr_wrist_vec = r_body[15:17]
         normalized_ul_wrist_vec = ul_wrist_vec - ul_elbow_vec
         normalized_ur_wrist_vec = ur_wrist_vec - ur_elbow_vec
         normalized_rl_wrist_vec = rl_wrist_vec - rl_elbow_vec
@@ -192,9 +197,9 @@ def eval_wrist_pos (
 ####################################################################################
 #                   FINGER POSITION EVALUATION
 ###################################################################################
-def __normalize_hand_bones (user_lhand_bones: np.ndarray, ref_lhand_bones: np.ndarray):
-    u_hand = user_lhand_bones.copy()
-    r_hand = ref_lhand_bones.copy()
+def __normalize_hand_bones (user_lhand: np.ndarray, ref_lhand: np.ndarray):
+    u_hand = user_lhand.copy()
+    r_hand = ref_lhand.copy()
 
     # subtract wrist from all the bones, including the wrist itself
     u_hand -= u_hand[0]
@@ -262,15 +267,14 @@ def __eval_finger_spread (user_hand, ref_hand) -> np.ndarray:
     return angle_diffs
 
 def eval_finger_pos (
-        user_frames: np.ndarray,
-        ref_frames: np.ndarray,
+        u_frames: np.ndarray,
+        r_frames: np.ndarray,
         path: list[tuple[int, int]],
         curl_tolerance: float = 0.2,
         spread_tolerance_deg: float = 12.0,
         noise_threshold: float = 8.0
         ) -> list[str]:
-    # frames, 
-    # 1 frame -> body, lhand, rhand
+    # frames, (F, 75, 3)
 
     lhand_curl_history = []
     rhand_curl_history = []
@@ -280,8 +284,8 @@ def eval_finger_pos (
     spread_pairs = [("thumb", "index"), ("index", "middle"), ("middle", "ring"), ("ring", "pinky")]
 
     for r_idx, u_idx in path:
-        u_lhand, u_rhand = user_frames[u_idx][1:]
-        r_lhand, r_rhand = ref_frames[r_idx][1:]
+        u_lhand, u_rhand = u_frames[u_idx][33:53], u_frames[u_idx][54:]
+        r_lhand, r_rhand = r_frames[r_idx][33:53], r_frames[r_idx][54:]
 
         u_lhand_norm, r_lhand_norm = __normalize_hand_bones(u_lhand, r_lhand)
         lhand_curl_history.append(__eval_finger_curl_ratio(u_lhand_norm, r_lhand_norm))
