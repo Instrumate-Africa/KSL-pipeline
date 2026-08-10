@@ -11,7 +11,7 @@ import urllib.request
 import mediapipe as mp
 from pathlib import Path
 
-download_dir = ''
+download_dir = '.'
 
 def download_models () -> tuple[str, str]:
     """
@@ -44,6 +44,7 @@ def extract_sign_poses(video_path: str, output_as_numpy_array=False, target_fps:
 
     Args:
         video_path   (str):    Path to the source video file.
+        output_as_numpy_array (bool): whether output is a numpy array or dictionary
         target_fps   (float) : fps to extract coords at
     """
 
