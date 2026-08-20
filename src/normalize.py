@@ -83,7 +83,7 @@ def json_normalize (frames: list[dict]) -> list[dict]:
                     "x": round((bone['x'] - hip_center['x'])/shoulder_width, 4),
                     "y": round((bone['y'] - hip_center['y'])/shoulder_width, 4),
                     "z": round((bone['z'] - hip_center['z'])/shoulder_width, 4),
-                    "visibility": bone['visibility']
+                    # "visibility": bone['visibility']
             }
             normalized_body.append(normalized_bone)
 
