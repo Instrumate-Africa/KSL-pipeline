@@ -1,52 +1,52 @@
 import numpy as np
 
-blaze_pose_landmarks = [
-        "nose", "inner left eye", "left eye", "outer left eye", "inner right eye", "right eye", "outer right eye",
-        "left ear", "right ear", "mouth left", "mouth right", "left shoulder", "right shoulder", "left elbow",
-        "right elbow", "left wrist", "right wrist", "left pinky", "right pinky", "left index", "right index",
-        "left thumb", "right thumb", "left hip", "right hip", "left knee", "right knee", "left ankle", "right ankle",
-        "left heel", "right heel", "left foot index", "right foot index"
-]
-
-BLAZE_HAND_LANDMARKS = [
-    # Wrist / Root Origin (0)
-    "WRIST",  # Index 0
-
-    # Thumb (1 - 4)
-    "THUMB_CMC",  # Index 1: Carpometacarpal joint
-    "THUMB_MCP",  # Index 2: Metacarpophalangeal joint
-    "THUMB_IP",   # Index 3: Interphalangeal joint
-    "THUMB_TIP",  # Index 4: Tip of thumb
-
-    # Index Finger (5 - 8)
-    "INDEX_FINGER_MCP",  # Index 5: Knuckle
-    "INDEX_FINGER_PIP",  # Index 6: Proximal joint
-    "INDEX_FINGER_DIP",  # Index 7: Distal joint
-    "INDEX_FINGER_TIP",  # Index 8: Tip of index finger
-
-    # Middle Finger (9 - 12)
-    "MIDDLE_FINGER_MCP", # Index 9: Knuckle
-    "MIDDLE_FINGER_PIP", # Index 10: Proximal joint
-    "MIDDLE_FINGER_DIP", # Index 11: Distal joint
-    "MIDDLE_FINGER_TIP", # Index 12: Tip of middle finger
-
-    # Ring Finger (13 - 16)
-    "RING_FINGER_MCP",   # Index 13: Knuckle
-    "RING_FINGER_PIP",   # Index 14: Proximal joint
-    "RING_FINGER_DIP",   # Index 15: Distal joint
-    "RING_FINGER_TIP",   # Index 16: Tip of ring finger
-
-    # Pinky Finger (17 - 20)
-    "PINKY_MCP",         # Index 17: Knuckle
-    "PINKY_PIP",         # Index 18: Proximal joint
-    "PINKY_DIP",         # Index 19: Distal joint
-    "PINKY_TIP",         # Index 20: Tip of pinky finger
-]
+# __blaze_pose_landmarks = [
+#         "nose", "inner left eye", "left eye", "outer left eye", "inner right eye", "right eye", "outer right eye",
+#         "left ear", "right ear", "mouth left", "mouth right", "left shoulder", "right shoulder", "left elbow",
+#         "right elbow", "left wrist", "right wrist", "left pinky", "right pinky", "left index", "right index",
+#         "left thumb", "right thumb", "left hip", "right hip", "left knee", "right knee", "left ankle", "right ankle",
+#         "left heel", "right heel", "left foot index", "right foot index"
+# ]
+#
+# __BLAZE_HAND_LANDMARKS = [
+#     # Wrist / Root Origin (0)
+#     "WRIST",  # Index 0
+#
+#     # Thumb (1 - 4)
+#     "THUMB_CMC",  # Index 1: Carpometacarpal joint
+#     "THUMB_MCP",  # Index 2: Metacarpophalangeal joint
+#     "THUMB_IP",   # Index 3: Interphalangeal joint
+#     "THUMB_TIP",  # Index 4: Tip of thumb
+#
+#     # Index Finger (5 - 8)
+#     "INDEX_FINGER_MCP",  # Index 5: Knuckle
+#     "INDEX_FINGER_PIP",  # Index 6: Proximal joint
+#     "INDEX_FINGER_DIP",  # Index 7: Distal joint
+#     "INDEX_FINGER_TIP",  # Index 8: Tip of index finger
+#
+#     # Middle Finger (9 - 12)
+#     "MIDDLE_FINGER_MCP", # Index 9: Knuckle
+#     "MIDDLE_FINGER_PIP", # Index 10: Proximal joint
+#     "MIDDLE_FINGER_DIP", # Index 11: Distal joint
+#     "MIDDLE_FINGER_TIP", # Index 12: Tip of middle finger
+#
+#     # Ring Finger (13 - 16)
+#     "RING_FINGER_MCP",   # Index 13: Knuckle
+#     "RING_FINGER_PIP",   # Index 14: Proximal joint
+#     "RING_FINGER_DIP",   # Index 15: Distal joint
+#     "RING_FINGER_TIP",   # Index 16: Tip of ring finger
+#
+#     # Pinky Finger (17 - 20)
+#     "PINKY_MCP",         # Index 17: Knuckle
+#     "PINKY_PIP",         # Index 18: Proximal joint
+#     "PINKY_DIP",         # Index 19: Distal joint
+#     "PINKY_TIP",         # Index 20: Tip of pinky finger
+# ]
 
 # The 5 primary MCP joints (knuckles) used with the WRIST (0) to calculate palm scale
-KNUCKLE_INDICES = [1, 5, 9, 13, 17]
+__KNUCKLE_INDICES = [1, 5, 9, 13, 17]
 # Mapping finger chains to landmark indices for easy iteration
-HAND_FINGER_CHAINS = {
+__HAND_FINGER_CHAINS = {
     "thumb":  [1, 2, 3, 4],
     "index":  [5, 6, 7, 8],
     "middle": [9, 10, 11, 12],
@@ -207,8 +207,8 @@ def __normalize_hand_bones (user_lhand: np.ndarray, ref_lhand: np.ndarray):
 
     # calculate palm size and subtract it from all bones, apart from the wrist
     # palm size = middle finger knucke - wrist(euclidean distance)
-    u_palm_size = np.linalg.norm(u_hand[KNUCKLE_INDICES[2]])
-    r_palm_size = np.linalg.norm(r_hand[KNUCKLE_INDICES[2]])
+    u_palm_size = np.linalg.norm(u_hand[__KNUCKLE_INDICES[2]])
+    r_palm_size = np.linalg.norm(r_hand[__KNUCKLE_INDICES[2]])
 
     u_hand /= (u_palm_size if u_palm_size > 1e-6 else 1.0)
     r_hand /= (r_palm_size if r_palm_size > 1e-6 else 1.0)
@@ -218,7 +218,7 @@ def __normalize_hand_bones (user_lhand: np.ndarray, ref_lhand: np.ndarray):
 def __calculate_extension_ratio (hand_bones):
     wrist = np.array([0, 0, 0])
     ratios = []
-    for indices in  HAND_FINGER_CHAINS.values():
+    for indices in  __HAND_FINGER_CHAINS.values():
         tip_idx = indices[-1]
         tip_wrist_dist = np.linalg.norm(hand_bones[tip_idx] - wrist)
         total_finger_bone_len = 0.0
@@ -242,7 +242,7 @@ def __eval_finger_curl_ratio(user_hand, ref_hand) -> np.ndarray:
 
 def __eval_finger_spread (user_hand, ref_hand) -> np.ndarray:
     user_finger_spread_angles, ref_finger_spread_angles = [], []
-    finger_indices = list(HAND_FINGER_CHAINS.values())
+    finger_indices = list(__HAND_FINGER_CHAINS.values())
 
     for i in range (0, len(finger_indices)-1):
         # knuckle to proximal joint for finger i
@@ -280,7 +280,7 @@ def eval_finger_pos (
     rhand_curl_history = []
     lhand_spread_history = []
     rhand_spread_history = []
-    finger_names = list(HAND_FINGER_CHAINS.keys())
+    finger_names = list(__HAND_FINGER_CHAINS.keys())
     spread_pairs = [("thumb", "index"), ("index", "middle"), ("middle", "ring"), ("ring", "pinky")]
 
     for r_idx, u_idx in path:

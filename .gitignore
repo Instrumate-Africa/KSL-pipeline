@@ -2,3 +2,5 @@
 .direnv
 data
 zips
+batch.log
+src/**/__pycache__

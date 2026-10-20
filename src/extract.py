@@ -11,9 +11,7 @@ import urllib.request
 import mediapipe as mp
 from pathlib import Path
 
-download_dir = '.'
-
-def download_models () -> tuple[str, str]:
+def __download_models (download_dir:str=".") -> tuple[str, str]:
     """
     Downloads the necessary MediaPipe task models if they don't exist.
 
@@ -38,17 +36,8 @@ def download_models () -> tuple[str, str]:
     return models['pose']['path'], models['hand']['path']
 
 
-def extract_sign_poses(video_path: str, output_as_numpy_array=False, target_fps: float = 30.0) -> dict | np.ndarray:
-    """
-    Extracts body and hand landmarks from a video and saves them to a JSON file.
-
-    Args:
-        video_path   (str):    Path to the source video file.
-        output_as_numpy_array (bool): whether output is a numpy array or dictionary
-        target_fps   (float) : fps to extract coords at
-    """
-
-    pose_model_path, hand_model_path = download_models()
+def setup_models (model_dir: str="."):
+    pose_model_path, hand_model_path = __download_models(model_dir)
 
     # Pose setup
     PoseLandmarker = mp.tasks.vision.PoseLandmarker
@@ -75,6 +64,19 @@ def extract_sign_poses(video_path: str, output_as_numpy_array=False, target_fps:
         min_hand_presence_confidence=0.5,
         min_tracking_confidence=0.5
     )
+    return (PoseLandmarker, pose_options, HandLandmarker, hand_options)
+
+
+def extract_sign_poses(video_path: str, opts: tuple, output_as_ndarray=False, target_fps: float = 30.0) -> dict | np.ndarray:
+    """
+    Extracts body and hand landmarks from a video and saves them to a JSON file.
+
+    Args:
+        video_path   (str):    Path to the source video file.
+        output_as_ndarray (bool): whether output is a numpy array or dictionary
+        target_fps   (float) : fps to extract coords at
+        opts (tuple (PoseLandmarker, pose_options, HandLandmarker, hand_options))
+    """
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -87,8 +89,8 @@ def extract_sign_poses(video_path: str, output_as_numpy_array=False, target_fps:
     frame_count = 0
     poses = []
 
-    with PoseLandmarker.create_from_options(pose_options) as pose_landmarker, \
-         HandLandmarker.create_from_options(hand_options) as hand_landmarker:
+    with opts[0].create_from_options(opts[1]) as pose_landmarker, \
+         opts[2].create_from_options(opts[3]) as hand_landmarker:
 
         while True:
             ret, frame = cap.read()
@@ -100,7 +102,7 @@ def extract_sign_poses(video_path: str, output_as_numpy_array=False, target_fps:
             if frame_accum < frame_interval:
                 continue          # skip this native frame — keeps output near target_fps
             frame_accum -= frame_interval
-            print(f"Processing frame {frame_count}/{total_frames}", end='\r')
+            print(f"[INFO] Processing frame {frame_count}/{total_frames}", end='\r')
 
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
@@ -153,7 +155,7 @@ def extract_sign_poses(video_path: str, output_as_numpy_array=False, target_fps:
 
     cap.release()
 
-    if output_as_numpy_array:
+    if output_as_ndarray:
         body = np.array([
             [
                 [c["x"], c["y"], c["z"], c["visibility"]]
@@ -196,12 +198,9 @@ def extract_sign_poses(video_path: str, output_as_numpy_array=False, target_fps:
         }
         return output
 
-def main ():
-
-    global download_dir
+def __main ():
 
     parser = argparse.ArgumentParser(description="Converting from Pose Video to JSON Coords")
-
     parser.add_argument("-i", "--input", required=True, help="Path to a video file or a directory of videos")
     parser.add_argument("-o", "--output", default="out", help="Path to output")
     parser.add_argument("-t", "--taskfile-dir", default="models",
@@ -210,7 +209,6 @@ def main ():
 
     args = parser.parse_args()
 
-    # Determine if we are looking at one file or a directory
     input_is_dir = False
     if os.path.isdir(args.input):
         input_is_dir=True
@@ -234,10 +232,9 @@ def main ():
 
     if not os.path.isdir(args.taskfile_dir):
         os.makedirs(args.taskfile_dir)
-        download_models()
+        __download_models()
 
-    download_dir = args.taskfile_dir
-
+    opts = setup_models (args.taskfile_dir)
     if input_is_dir:
         vid_files = [f for f in os.listdir(args.input) if f.endswith(('.mp4', '.mov', '.avi', '.mkv'))]
         for vid in vid_files:
@@ -245,7 +242,7 @@ def main ():
 
             full_input_path: str  = os.path.join(args.input, vid)
             full_output_path: str = os.path.join(args.output if output_is_dir else '', sign_filename)
-            output = extract_sign_poses(full_input_path)
+            output = extract_sign_poses(full_input_path, opts)
             with open(full_output_path, 'w') as f:
                 json.dump(output, f)
             print(f"[INFO] Done! Saved to {full_output_path}")
@@ -253,11 +250,11 @@ def main ():
     else:
         full_input_filepath = Path(args.input)
         full_output_path = os.path.join(args.output if output_is_dir else '', full_input_filepath.stem)
-        output = extract_sign_poses(args.input)
+        output = extract_sign_poses(args.input, opts)
         with open(full_output_path, 'w') as f:
             json.dump(output, f)
         print(f"[INFO] Done! Saved to {full_output_path}")
         print(f"[INFO] File size: {round(os.path.getsize(full_output_path) / 1024, 1)} KB")
 
 if __name__ == "__main__":
-    main()
+    __main()

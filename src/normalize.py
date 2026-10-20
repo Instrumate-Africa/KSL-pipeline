@@ -6,47 +6,35 @@ import argparse
 import numpy as np
 from pathlib import Path
 
-def np_normalize (frames: np.ndarray) -> list[tuple[np.ndarray, float, np.ndarray]]:
-    normalized_frames = []
-    hip_centers = []
-    shoulder_widths = []
-
+def np_normalize (frames: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     # each frame is a stack of all 75 landmarks, 33 for the body, and 21 for each hand
-    for frame in frames:
-        body = frame[:33]        # 0-32
-        left_hand = frame[33:54] # 33 - 53
-        right_hand = frame[54:]  # 54 - 74
+    body = frames[:, :33]        # 0-32
+    left_hand = frames[:, 33:54] # 33 - 53
+    right_hand = frames[:, 54:]  # 54 - 74
 
-        # average of left hip(23) and right hip(24)
-        hip_center = np.round((body[23] + body[24])/2, 4)
-        #Euclidean distance between left shoulder and right shoulder
-        shoulder_width = np.linalg.norm(body[11]-body[12])
+    # average of left hip(23) and right hip(24)
+    hip_centers = np.round((body[:, 23] + body[:, 24])/2, 4) # (N, 3)
+    hip_centers_exp = hip_centers[:, np.newaxis, :]          # (N, 33, 3)
 
-        normalized_body = np.round((body - hip_center) / shoulder_width, 4)
+    # Euclidean distance between left shoulder and right shoulder
+    shoulder_widths = np.linalg.norm(body[:, 11]-body[:, 12], axis=1) # (N)
+    shoulder_widths = np.where(shoulder_widths==0, 1e-5, shoulder_widths)
+    shoulder_widths_exp = shoulder_widths[:, np.newaxis, np.newaxis] # (N, 1, 1) -> (N, 33, 3)
 
-        normalized_lh = left_hand.copy()
-        mask = np.any(left_hand != 0, axis=1)
-        normalized_lh[mask] = np.round(
-            (left_hand[mask] - hip_center) / shoulder_width,
-            4
-        )
-        normalized_rh = right_hand.copy()
-        mask = np.any(right_hand != 0, axis=1)
-        normalized_rh[mask] = np.round(
-            (right_hand[mask] - hip_center) / shoulder_width,
-            4
-        )
-        normalized_frame = np.vstack([
-            normalized_body,
-            normalized_lh,
-            normalized_rh
-        ])
-        hip_centers.append(hip_center)
-        shoulder_widths.append(shoulder_width)
-        normalized_frames.append(normalized_frame)
+    normalized_body = np.round((body - hip_centers_exp) / shoulder_widths_exp, 4)
 
-    output = [hip_centers, shoulder_widths, np.array([normalized_frames])]
-    return output
+    lmask = np.any(left_hand != 0, axis=2)
+    norm_lh = np.round((left_hand - hip_centers_exp) / shoulder_widths_exp, 4)
+    normalized_lh = np.where(lmask[..., np.newaxis], norm_lh, left_hand)
+
+    rmask = np.any(right_hand != 0, axis=2)
+    norm_rh = np.round((right_hand - hip_centers_exp) / shoulder_widths_exp, 4)
+    normalized_rh = np.where(rmask[..., np.newaxis], norm_rh, right_hand)
+
+    normalized_frames = np.concatenate([ normalized_body, normalized_lh, normalized_rh ], axis=1)
+    shoulder_widths = np.round(shoulder_widths, 4)
+
+    return (hip_centers, shoulder_widths, normalized_frames)
 
 
 def json_normalize (frames: list[dict]) -> list[dict]:
