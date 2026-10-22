@@ -1,0 +1,15 @@
+[project]
+name = "ksl-pipeline"
+version = "0.1.0"
+requires-python = ">= 3.13"
+authors = [ {name = "Instrumate Africa"} ]
+readme = "README.md"
+license = "MIT"
+dependencies = []
+
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
